@@ -1,0 +1,89 @@
+// RAINFALL DISTRIBUTION OVER MAHARASHTRA FOR 2024
+
+// Feature Collection Add Maharashtra Boundary as geometry
+var states = ee.FeatureCollection("FAO/GAUL/2015/level1");
+var maharashtra = states.filter(ee.Filter.eq("ADM1_NAME",'Maharashtra'))
+print(maharashtra);
+Map.centerObject(maharashtra, 6);
+var geometry =maharashtra.geometry();
+Map.addLayer(geometry, {}, 'Maharashtra');
+
+//  Collection of dataset for Rainfall
+var dataset = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY");
+
+// Filter the dataset 
+var filtered = dataset
+  .filter(ee.Filter.date('2024-01-01', '2025-01-01'))
+  .filter(ee.Filter.bounds(geometry));
+  
+// Print the number of images
+print('Number of CHIRPS images in 2024:', filtered.size());
+
+
+// Sum all daily rainfall images to get total rainfall in mm
+var annualRainfall = filtered.sum().clip(geometry);
+print('Annual Rainfall Image:', annualRainfall);
+
+// Define visualization parameters
+var vis = {
+  min: 0,
+  max: 2000,  // Adjust this based on expected rainfall (in mm)
+  palette: ['red','orange','#74a9cf','#2b8cbe','#045a8d']
+};
+
+// Add the layer to the map
+Map.addLayer(annualRainfall, vis, 'Annual Rainfall 2024');
+
+Export.image.toDrive({
+  image: annualRainfall,
+  description: 'AnnualRainfall_2024_Maharashtra',
+  folder: 'GEE_Exports',
+  scale: 5000,
+  region: maharashtra.geometry(),
+  fileFormat: 'GeoTIFF',
+  maxPixels: 1e13
+});
+
+//Add Title on map
+var title = ui.Label('Annual Rainfall Map (2024) - Maharashtra', {
+  fontWeight: 'bold',
+  fontSize: '20px',
+  margin: '10px 5px'
+});
+Map.add(title);
+
+//Adding Legend panel
+var legend = ui.Panel({
+  style: {
+    position: 'bottom-left',
+    padding: '8px 15px'
+  }
+});
+
+legend.add(ui.Label('Rainfall (mm)', {fontWeight: 'bold'}));
+
+// Colors and labels
+var palette = ['red', 'orange', '#74a9cf', '#2b8cbe', '#045a8d'];
+var labels = ['< 600', '600–1200', '1200–1800', '1800–2400', '> 2400'];
+
+for (var i = 0; i < 5; i++) {
+  var row = ui.Panel({
+    layout: ui.Panel.Layout.Flow('horizontal')
+  });
+  
+  row.add(ui.Label({
+    style: {
+      backgroundColor: palette[i],
+      padding: '8px',
+      margin: '2px'
+    }
+  }));
+  
+  row.add(ui.Label(labels[i], {margin: '8px'}));
+  
+  legend.add(row);
+}
+
+Map.add(legend);
+
+
